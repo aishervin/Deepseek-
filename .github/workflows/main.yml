@@ -1,8 +1,8 @@
-name: DeepSeek Token Hunter
+name: DeepSeek Hunter
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # هر ۶ ساعت
+    - cron: '0 */4 * * *'  # هر ۴ ساعت
   workflow_dispatch:
 
 jobs:
@@ -10,18 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
       - name: Install dependencies
         run: pip install requests urllib3
-
-      - name: Run DeepSeek Hunter (hardcoded tokens)
+      - name: Run DeepSeek Hunter
         run: python deepseek_hunter.py
-
       - name: Upload results
         uses: actions/upload-artifact@v4
         with:
