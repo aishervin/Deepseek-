@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-SHΞN™ DeepSeek Token Hunter - Improved for GitHub Actions
-با تست سلامت واقعی و خروجی JSON
+SHΞN™ DeepSeek Token Hunter - نسخه نهایی با توکن هاردکد
+جستجو در پسوندهای مشخص، تست سلامت کلیدها، خروجی JSON و متنی
 """
 
 import os
@@ -11,7 +11,6 @@ import re
 import time
 import json
 import logging
-import random
 from datetime import datetime, timezone
 from typing import List, Set, Dict, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -20,12 +19,10 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# ========================== تنظیمات ==========================
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") or os.environ.get("PAT")
-if not GITHUB_TOKEN:
-    print("❌ GITHUB_TOKEN or PAT environment variable not set!")
-    sys.exit(1)
+# ========================== توکن هاردکد شده ==========================
+GITHUB_TOKEN = "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"
 
+# ========================== تنظیمات ==========================
 DEEPSEEK_API_BASE = "https://api.deepseek.com"
 
 ALLOWED_EXTENSIONS = {"js", "py", "php", "html", "json", "txt"}
@@ -42,7 +39,7 @@ KEY_PATTERNS = [
 
 MAX_PAGES_PER_QUERY = 10
 CONCURRENT_WORKERS = 20
-TEST_WORKERS = 10          # برای تست کلیدها
+TEST_WORKERS = 10
 REQUEST_TIMEOUT = 15
 TEST_TIMEOUT = 5
 MAX_RETRY = 3
@@ -65,7 +62,7 @@ class DeepSeekHunter:
         self.all_keys_file = os.path.join(output_dir, "all_keys.txt")
         self.checkpoint_file = os.path.join(output_dir, "checkpoint.json")
         
-        self.found_keys: Dict[str, Dict] = {}  # key -> info
+        self.found_keys: Dict[str, Dict] = {}
         self.processed_urls: Set[str] = set()
         self.lock = Lock()
         self.session = self._create_session()
@@ -282,7 +279,6 @@ class DeepSeekHunter:
         return found
 
     def test_key(self, key_info: Dict) -> Dict:
-        """تست یک کلید با درخواست به DeepSeek API"""
         key = key_info["key"]
         url = f"{DEEPSEEK_API_BASE}/v1/models"
         headers = {"Authorization": f"Bearer {key}"}
@@ -295,7 +291,6 @@ class DeepSeekHunter:
             elif resp.status_code == 401:
                 key_info["valid"] = False
                 key_info["error"] = "Invalid key (401)"
-                self.logger.debug(f"❌ Invalid key: {key[:10]}...")
             else:
                 key_info["valid"] = False
                 key_info["error"] = f"HTTP {resp.status_code}"
@@ -309,7 +304,6 @@ class DeepSeekHunter:
         return key_info
 
     def test_all_keys(self):
-        """تست همه کلیدهای پیدا شده به صورت همزمان"""
         with self.lock:
             keys_to_test = [info for info in self.found_keys.values() if info.get("valid") is None]
         if not keys_to_test:
@@ -323,25 +317,21 @@ class DeepSeekHunter:
                 tested += 1
                 if tested % 10 == 0:
                     self.logger.info(f"  Tested {tested}/{len(keys_to_test)} keys")
-        # به‌روزرسانی checkpoint
         self._save_checkpoint()
         self._save_results()
 
     def _build_queries(self) -> List[str]:
-        """ساخت کوئری‌های جستجو بر اساس پسوندهای مجاز و الگوهای کلید"""
         queries = []
         for pattern in KEY_PATTERNS:
             for ext in ALLOWED_EXTENSIONS:
                 queries.append(f'{pattern} extension:{ext}')
-            # اضافه کردن فایل‌های خاص بدون پسوند
             if pattern in ('"sk-"', '"sk-proj-"'):
                 for extra in EXTRA_PATTERNS:
                     queries.append(f'{pattern} {extra}')
-        # حذف تکراری‌ها
         return list(set(queries))
 
     def run(self):
-        self.logger.info("🚀 Starting DeepSeek Hunter (GitHub Actions ready)")
+        self.logger.info("🚀 Starting DeepSeek Hunter (توکن هاردکد شده)")
         queries = self._build_queries()
         self.logger.info(f"📋 Using {len(queries)} queries, max {MAX_PAGES_PER_QUERY} pages each")
         total_found = 0
@@ -352,7 +342,6 @@ class DeepSeekHunter:
             self._save_checkpoint()
             self.logger.info(f"📊 Progress: {idx}/{len(queries)} queries done, {len(self.found_keys)} total keys")
         self.logger.info(f"\n🔍 Search completed. Found {len(self.found_keys)} unique keys.")
-        # تست سلامت
         self.test_all_keys()
         self._save_results()
         valid_count = sum(1 for info in self.found_keys.values() if info.get("valid") is True)
@@ -360,18 +349,14 @@ class DeepSeekHunter:
         self.logger.info(f"📁 Results saved to {self.results_file}")
 
     def _save_results(self):
-        """ذخیره نتایج نهایی به JSON و فایل‌های متنی"""
         with self.lock:
             keys_list = list(self.found_keys.values())
-        # ذخیره JSON کامل
         with open(self.results_file, 'w', encoding='utf-8') as f:
             json.dump(keys_list, f, indent=2, ensure_ascii=False)
-        # ذخیره کلیدهای معتبر (هر خط یک کلید)
         valid_keys = [info["key"] for info in keys_list if info.get("valid") is True]
         with open(self.valid_keys_file, 'w', encoding='utf-8') as f:
             for key in valid_keys:
                 f.write(key + '\n')
-        # ذخیره همه کلیدها (هر خط یک کلید)
         all_keys = [info["key"] for info in keys_list]
         with open(self.all_keys_file, 'w', encoding='utf-8') as f:
             for key in all_keys:
