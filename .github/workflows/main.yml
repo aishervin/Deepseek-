@@ -1,25 +1,52 @@
-name: DeepSeek Hunter
+name: DeepSeek Token Hunter
 
 on:
   schedule:
-    - cron: '0 */4 * * *'  # هر ۴ ساعت
-  workflow_dispatch:
+    - cron: '0 0 * * *'   # هر روز ساعت 00:00 UTC اجرا شود
+  workflow_dispatch:      # امکان اجرای دستی
 
 jobs:
   hunt:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write     # برای ذخیره خروجی در مخزن (اختیاری)
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
+
       - name: Install dependencies
-        run: pip install requests urllib3
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests urllib3
+
       - name: Run DeepSeek Hunter
-        run: python deepseek_hunter.py
-      - name: Upload results
+        env:
+          PAT: ${{ secrets.PAT }}   # یا GITHUB_TOKEN
+        run: |
+          python hunter.py
+
+      - name: Upload results as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: deepseek-tokens
-          path: deepseek_tokens.txt
+          name: deepseek-results
+          path: |
+            deepseek_results.json
+            valid_keys.txt
+            all_keys.txt
+            checkpoint.json
+          retention-days: 30
+
+      - name: Commit results (optional)
+        if: github.event_name == 'push' || github.event_name == 'schedule'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add deepseek_results.json valid_keys.txt all_keys.txt checkpoint.json || true
+          git diff --staged --quiet || git commit -m "Update DeepSeek results [skip ci]"
+          git push
