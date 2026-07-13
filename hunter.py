@@ -20,7 +20,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 # ========================== توکن هاردکد شده ==========================
-GITHUB_TOKEN = "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"
+GITHUB_TOKEN = "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"
 
 # ========================== تنظیمات ==========================
 DEEPSEEK_API_BASE = "https://api.deepseek.com"
